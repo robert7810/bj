@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blackjack</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="flip.css">
+</head>
+<body class="bg-green-800 text-white">
+    <!-- ... (previous content) ... -->
+    <script src="flip.js"></script>
+    <script>
+        // ... (previous JavaScript code) ...
+
+        function createCardElement(card, faceUp = true) {
+            const flipContainer = document.createElement('div');
+            flipContainer.className = 'flip-container w-24 h-36 inline-block m-2';
+            
+            const flipper = document.createElement('div');
+            flipper.className = 'flipper w-full h-full';
+            
+            const front = document.createElement('div');
+            front.className = 'front w-full h-full';
+            
+            const back = document.createElement('div');
+            back.className = 'back w-full h-full';
+            
+            const frontImg = document.createElement('img');
+            frontImg.src = card.image;
+            frontImg.alt = card.code;
+            frontImg.className = 'w-full h-full';
+            
+            const backImg = document.createElement('img');
+            backImg.src = 'https://www.deckofcardsapi.com/static/img/back.png';
+            backImg.alt = 'Card Back';
+            backImg.className = 'w-full h-full';
+            
+            front.appendChild(frontImg);
+            back.appendChild(backImg);
+            flipper.appendChild(front);
+            flipper.appendChild(back);
+            flipContainer.appendChild(flipper);
+            
+            if (!faceUp) {
+                flipContainer.classList.add('flipped');
+            }
+            
+            return flipContainer;
+        }
+
+        function updateUI() {
+            playerHandElement.innerHTML = '';
+            dealerHandElement.innerHTML = '';
+            playerHand.forEach(card => {
+                playerHandElement.appendChild(createCardElement(card));
+            });
+            dealerHand.forEach((card, index) => {
+                dealerHandElement.appendChild(createCardElement(card, index === 0));
+            });
+            playerScoreElement.textContent = `Score: ${calculateScore(playerHand)}`;
+            dealerScoreElement.textContent = `Score: ${calculateScore([dealerHand[0]])}`;
+        }
+
+        function revealDealerHand() {
+            const dealerCards = dealerHandElement.querySelectorAll('.flip-container');
+            dealerCards.forEach(card => {
+                if (card.classList.contains('flipped')) {
+                    flipCard(card);
+                }
+            });
+            dealerScoreElement.textContent = `Score: ${calculateScore(dealerHand)}`;
+        }
+
+        // ... (rest of the JavaScript code) ...
+    </script>
+</body>
+</html>
