@@ -5,74 +5,177 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Blackjack</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="flip.css">
 </head>
 <body class="bg-green-800 text-white">
-    <!-- ... (previous content) ... -->
-    <script src="flip.js"></script>
-    <script>
-        // ... (previous JavaScript code) ...
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-4xl font-bold text-center mb-8">Blackjack</h1>
+        <div class="flex justify-center mb-4">
+            <p class="text-xl">Balance: $<span id="balance">1000</span></p>
+        </div>
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold mb-4">Dealer's Hand</h2>
+            <div id="dealer-hand" class="flex space-x-2"></div>
+            <p id="dealer-score" class="mt-2"></p>
+        </div>
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold mb-4">Your Hand</h2>
+            <div id="player-hand" class="flex space-x-2"></div>
+            <p id="player-score" class="mt-2"></p>
+        </div>
+        <div class="flex space-x-4 mb-4">
+            <button id="hit" class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded">Hit</button>
+            <button id="stand" class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded">Stand</button>
+            <button id="new-game" class="bg-yellow-500 hover:bg-yellow-600 px-4 py-2 rounded">New Game</button>
+        </div>
+        <p id="message" class="text-xl font-bold text-center"></p>
+    </div>
 
-        function createCardElement(card, faceUp = true) {
-            const flipContainer = document.createElement('div');
-            flipContainer.className = 'flip-container w-24 h-36 inline-block m-2';
-            
-            const flipper = document.createElement('div');
-            flipper.className = 'flipper w-full h-full';
-            
-            const front = document.createElement('div');
-            front.className = 'front w-full h-full';
-            
-            const back = document.createElement('div');
-            back.className = 'back w-full h-full';
-            
-            const frontImg = document.createElement('img');
-            frontImg.src = card.image;
-            frontImg.alt = card.code;
-            frontImg.className = 'w-full h-full';
-            
-            const backImg = document.createElement('img');
-            backImg.src = 'https://www.deckofcardsapi.com/static/img/back.png';
-            backImg.alt = 'Card Back';
-            backImg.className = 'w-full h-full';
-            
-            front.appendChild(frontImg);
-            back.appendChild(backImg);
-            flipper.appendChild(front);
-            flipper.appendChild(back);
-            flipContainer.appendChild(flipper);
-            
-            if (!faceUp) {
-                flipContainer.classList.add('flipped');
-            }
-            
-            return flipContainer;
+    <script>
+        let deckId;
+        let playerHand = [];
+        let dealerHand = [];
+        let balance = 1000;
+        const balanceElement = document.getElementById('balance');
+        const playerHandElement = document.getElementById('player-hand');
+        const dealerHandElement = document.getElementById('dealer-hand');
+        const playerScoreElement = document.getElementById('player-score');
+        const dealerScoreElement = document.getElementById('dealer-score');
+        const hitButton = document.getElementById('hit');
+        const standButton = document.getElementById('stand');
+        const newGameButton = document.getElementById('new-game');
+        const messageElement = document.getElementById('message');
+
+        async function startNewGame() {
+            const response = await fetch('https://www.deckofcardsapi.com/api/deck/new/shuffle/?deck_count=6');
+            const data = await response.json();
+            deckId = data.deck_id;
+            playerHand = [];
+            dealerHand = [];
+            await dealInitialCards();
+            updateUI();
+            hitButton.disabled = false;
+            standButton.disabled = false;
+            messageElement.textContent = '';
+        }
+
+        async function dealInitialCards() {
+            const playerCards = await drawCards(2);
+            const dealerCards = await drawCards(2);
+            playerHand = playerCards;
+            dealerHand = dealerCards;
+        }
+
+        async function drawCards(count) {
+            const response = await fetch(`https://www.deckofcardsapi.com/api/deck/${deckId}/draw/?count=${count}`);
+            const data = await response.json();
+            return data.cards;
         }
 
         function updateUI() {
             playerHandElement.innerHTML = '';
             dealerHandElement.innerHTML = '';
             playerHand.forEach(card => {
-                playerHandElement.appendChild(createCardElement(card));
+                const img = document.createElement('img');
+                img.src = card.image;
+                img.alt = card.code;
+                img.className = 'w-24 h-36';
+                playerHandElement.appendChild(img);
             });
             dealerHand.forEach((card, index) => {
-                dealerHandElement.appendChild(createCardElement(card, index === 0));
+                const img = document.createElement('img');
+                img.src = index === 0 ? card.image : 'https://www.deckofcardsapi.com/static/img/back.png';
+                img.alt = index === 0 ? card.code : 'Hidden';
+                img.className = 'w-24 h-36';
+                dealerHandElement.appendChild(img);
             });
             playerScoreElement.textContent = `Score: ${calculateScore(playerHand)}`;
             dealerScoreElement.textContent = `Score: ${calculateScore([dealerHand[0]])}`;
         }
 
-        function revealDealerHand() {
-            const dealerCards = dealerHandElement.querySelectorAll('.flip-container');
-            dealerCards.forEach(card => {
-                if (card.classList.contains('flipped')) {
-                    flipCard(card);
+        function calculateScore(hand) {
+            let score = 0;
+            let aces = 0;
+            hand.forEach(card => {
+                if (card.value === 'ACE') {
+                    aces++;
+                    score += 11;
+                } else if (['KING', 'QUEEN', 'JACK'].includes(card.value)) {
+                    score += 10;
+                } else {
+                    score += parseInt(card.value);
                 }
+            });
+            while (score > 21 && aces > 0) {
+                score -= 10;
+                aces--;
+            }
+            return score;
+        }
+
+        async function hit() {
+            const newCard = await drawCards(1);
+            playerHand.push(newCard[0]);
+            updateUI();
+            const playerScore = calculateScore(playerHand);
+            if (playerScore > 21) {
+                endGame('You bust! Dealer wins.');
+            }
+        }
+
+        async function stand() {
+            hitButton.disabled = true;
+            standButton.disabled = true;
+            while (calculateScore(dealerHand) < 17) {
+                const newCard = await drawCards(1);
+                dealerHand.push(newCard[0]);
+            }
+            revealDealerHand();
+            const playerScore = calculateScore(playerHand);
+            const dealerScore = calculateScore(dealerHand);
+            if (dealerScore > 21) {
+                endGame('Dealer busts! You win!');
+            } else if (playerScore > dealerScore) {
+                endGame('You win!');
+            } else if (playerScore < dealerScore) {
+                endGame('Dealer wins!');
+            } else {
+                endGame('It\'s a tie!');
+            }
+        }
+
+        function revealDealerHand() {
+            dealerHandElement.innerHTML = '';
+            dealerHand.forEach(card => {
+                const img = document.createElement('img');
+                img.src = card.image;
+                img.alt = card.code;
+                img.className = 'w-24 h-36';
+                dealerHandElement.appendChild(img);
             });
             dealerScoreElement.textContent = `Score: ${calculateScore(dealerHand)}`;
         }
 
-        // ... (rest of the JavaScript code) ...
+        function endGame(message) {
+            messageElement.textContent = message;
+            hitButton.disabled = true;
+            standButton.disabled = true;
+            if (message.includes('You win')) {
+                updateBalance(10);
+            } else if (message.includes('Dealer wins')) {
+                updateBalance(-10);
+            }
+        }
+
+        function updateBalance(amount) {
+            balance += amount;
+            balanceElement.textContent = balance;
+        }
+
+        hitButton.addEventListener('click', hit);
+        standButton.addEventListener('click', stand);
+        newGameButton.addEventListener('click', startNewGame);
+
+        startNewGame();
     </script>
 </body>
 </html>
